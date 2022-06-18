@@ -68,7 +68,7 @@
 		"vite": "^2.6.4"
 	},
 	"dependencies": {
-		"delay": "^5.0.0",
+		"@cdellacqua/sleep": "^1.0.0",
 		"universal-stores": "^1.1.0"
 	}
 }

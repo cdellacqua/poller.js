@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-import delay from 'delay';
 import {makePoller} from '../src/lib';
+import {sleep} from '@cdellacqua/sleep';
 
 describe('examples', () => {
 	it('makePoller', () => {
@@ -13,7 +13,7 @@ describe('examples', () => {
 		).not.to.throw();
 	});
 	it('readme 1', async () => {
-		const fakeFetch = (_: string) => delay(10).then(() => ({status: 200}));
+		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
 		let actual = 0;
 		const poller = makePoller({
 			interval: 10,
@@ -31,7 +31,7 @@ describe('examples', () => {
 		}
 	});
 	it('readme 1', async () => {
-		const fakeFetch = (_: string) => delay(10).then(() => ({status: 200}));
+		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
 		let calls = 0;
 		const poller = makePoller({
 			interval: 10,
@@ -44,9 +44,9 @@ describe('examples', () => {
 			await poller.restart({
 				interval: 40,
 			});
-			await delay(15);
+			await sleep(15);
 			expect(calls).to.eq(1);
-			await delay(30);
+			await sleep(30);
 			expect(calls).to.eq(1);
 			await poller.stop();
 		} finally {

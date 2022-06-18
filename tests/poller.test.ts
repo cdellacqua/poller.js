@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-import delay from 'delay';
 import {makePoller} from '../src/lib';
+import {sleep} from '@cdellacqua/sleep';
 
 describe('poller', () => {
 	it('checks the poller state in different situations', async () => {
@@ -40,7 +40,7 @@ describe('poller', () => {
 			expect(actual).to.be.undefined;
 			await poller.start();
 			expect(actual).to.eq(1);
-			await delay(24);
+			await sleep(24);
 			expect(actual).to.eq(2);
 			await poller.stop();
 			expect(actual).to.eq(2);
@@ -73,9 +73,9 @@ describe('poller', () => {
 				interval: 40,
 			});
 			expect(actual).to.eq(-2);
-			await delay(24);
+			await sleep(24);
 			expect(actual).to.eq(-2);
-			await delay(20);
+			await sleep(20);
 			expect(actual).to.eq(-4);
 			await poller.stop();
 			expect(actual).to.eq(-4);
@@ -115,9 +115,9 @@ describe('poller', () => {
 				useDynamicInterval: true,
 			});
 			expect(actual).to.eq(1);
-			await delay(14);
+			await sleep(14);
 			expect(actual).to.eq(2);
-			await delay(18);
+			await sleep(18);
 			expect(actual).to.eq(2);
 			expect(customHandlerCalls).to.eq(3);
 			await poller.stop();
@@ -130,7 +130,7 @@ describe('poller', () => {
 		let consumerCalls = 0;
 		const poller = makePoller({
 			interval: 20,
-			producer: () => delay(20).then(() => undefined),
+			producer: () => sleep(20).then(() => undefined),
 			consumer: () => {
 				consumerCalls++;
 			},
@@ -139,11 +139,11 @@ describe('poller', () => {
 		try {
 			await poller.start();
 			expect(consumerCalls).to.eq(0);
-			await delay(24);
+			await sleep(24);
 			expect(consumerCalls).to.eq(1);
-			await delay(24);
+			await sleep(24);
 			expect(consumerCalls).to.eq(2);
-			await delay(24);
+			await sleep(24);
 			expect(consumerCalls).to.eq(3);
 		} finally {
 			await poller.stop();
@@ -153,7 +153,7 @@ describe('poller', () => {
 		let consumerCalls = 0;
 		const poller = makePoller({
 			interval: 10,
-			producer: () => delay(10).then(() => undefined),
+			producer: () => sleep(10).then(() => undefined),
 			consumer: () => {
 				consumerCalls++;
 			},
@@ -162,11 +162,11 @@ describe('poller', () => {
 		try {
 			await poller.start();
 			expect(consumerCalls).to.eq(0);
-			await delay(21);
+			await sleep(21);
 			expect(consumerCalls).to.eq(1);
-			await delay(21);
+			await sleep(21);
 			expect(consumerCalls).to.eq(2);
-			await delay(21);
+			await sleep(21);
 			expect(consumerCalls).to.eq(3);
 		} finally {
 			await poller.stop();
@@ -175,7 +175,7 @@ describe('poller', () => {
 	it('starts while still running', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => delay(10).then(() => undefined),
+			producer: () => sleep(10).then(() => undefined),
 			consumer: () => undefined,
 		});
 		try {
@@ -192,7 +192,7 @@ describe('poller', () => {
 	it('starts while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => delay(10).then(() => undefined),
+			producer: () => sleep(10).then(() => undefined),
 			consumer: () => undefined,
 		});
 		try {
@@ -211,7 +211,7 @@ describe('poller', () => {
 	it('stops while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => delay(10).then(() => undefined),
+			producer: () => sleep(10).then(() => undefined),
 			consumer: () => undefined,
 		});
 		try {
@@ -242,7 +242,7 @@ describe('poller', () => {
 		});
 		try {
 			await poller.start();
-			await delay(1);
+			await sleep(1);
 			expect(errorHandlerCalls).to.eq(1);
 		} finally {
 			await poller.stop();
@@ -261,7 +261,7 @@ describe('poller', () => {
 		});
 		try {
 			await poller.start();
-			await delay(1);
+			await sleep(1);
 			expect(poller.state).to.eq('running');
 		} finally {
 			await poller.stop();

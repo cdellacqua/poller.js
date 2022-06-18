@@ -1,5 +1,5 @@
-import delay, {ClearablePromise} from 'delay';
 import {makeStore, ReadonlyStore} from 'universal-stores';
+import {SleepPromise, sleep} from '@cdellacqua/sleep';
 
 /**
  * Configuration parameters for making a Poller.
@@ -109,11 +109,19 @@ export type Poller<T> = {
  * @param config a object containing the desired configuration of the poller. See {@link MakePollerParams}
  * @returns a poller.
  */
-export function makePoller<T>({producer, consumer, errorHandler, interval, retryInterval, monotonicTimeProvider, useDynamicInterval = true}: MakePollerParams<T>): Poller<T> {
+export function makePoller<T>({
+	producer,
+	consumer,
+	errorHandler,
+	interval,
+	retryInterval,
+	monotonicTimeProvider,
+	useDynamicInterval = true,
+}: MakePollerParams<T>): Poller<T> {
 	const state$ = makeStore<PollerState>('initial');
 	let stoppingPromise: Promise<void> = Promise.resolve();
 	let stoppingResolve = () => undefined as void;
-	let delayPromise: ClearablePromise<void> | null = null;
+	let sleepPromise: SleepPromise | null = null;
 
 	const defaultErrorHandler = errorHandler ?? ((err) => console.error('an error occurred while polling', err));
 	const defaultMonotonicTimeProvider = monotonicTimeProvider ?? (() => performance.now());
@@ -146,23 +154,23 @@ export function makePoller<T>({producer, consumer, errorHandler, interval, retry
 						await overriddenConsumer?.(produced);
 						const now = overriddenMonotonicTimeProvider();
 						const passedTime = now - startedAt;
-						delayPromise = delay(Math.max(0, overriddenInterval - passedTime));
+						sleepPromise = sleep(Math.max(0, overriddenInterval - passedTime));
 					} else {
 						// Note: do not merge the following two statements.
 						// await overriddenConsumer?.(await overriddenProducer()); does not work, because in case there were no consumer, the runtime would skip the producer call.
 						const produced = await overriddenProducer();
 						await overriddenConsumer?.(produced);
-						delayPromise = delay(overriddenInterval);
+						sleepPromise = sleep(overriddenInterval);
 					}
-					await delayPromise;
+					await sleepPromise;
 				} catch (err) {
 					await Promise.resolve()
 						.then(() => overriddenErrorHandler(err))
 						.catch((handlerError) => {
 							console.error('poller error handler threw an error', handlerError);
 						});
-					delayPromise = delay(overriddenRetryInterval ?? overriddenInterval);
-					await delayPromise;
+					sleepPromise = sleep(overriddenRetryInterval ?? overriddenInterval);
+					await sleepPromise;
 				}
 			}
 		})().finally(() => {
@@ -185,7 +193,7 @@ export function makePoller<T>({producer, consumer, errorHandler, interval, retry
 				stoppingResolve = res;
 			});
 			state$.set('stopping');
-			delayPromise?.clear();
+			sleepPromise?.skip();
 			await stoppingPromise;
 		}
 	}

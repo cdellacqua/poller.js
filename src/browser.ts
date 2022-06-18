@@ -1,6 +1,6 @@
 import './style.css';
 import {makePoller} from './lib';
-import delay from 'delay';
+import {sleep} from '@cdellacqua/sleep';
 
 const appDiv = document.getElementById('app') as HTMLDivElement;
 
@@ -37,7 +37,7 @@ appDiv.appendChild(restartButton);
 
 const poller = makePoller({
 	interval: 500,
-	producer: () => delay(1000).then(() => Math.floor(Math.random() * 10)),
+	producer: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
 	consumer: (n) => {
 		randomNumberDiv.textContent = `Random number: ${n}`;
 	},

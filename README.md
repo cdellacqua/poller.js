@@ -77,7 +77,7 @@ examplePoller.onData$.subscribe(({status}) => console.log(`Received status ${sta
 examplePoller.start().then(() => console.log('polling started'));
 ```
 
-The `subscribe` method returns an function that can be used to remove the active
+The `subscribe` method returns a function that can be used to remove the active
 subscription:
 
 ```ts

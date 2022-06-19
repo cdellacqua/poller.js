@@ -11,9 +11,7 @@
 	"license": "MIT",
 	"keywords": [
 		"polling",
-		"poller",
-		"producer",
-		"consumer"
+		"poller"
 	],
 	"repository": {
 		"url": "git+https://github.com/cdellacqua/poller.js"
@@ -47,6 +45,7 @@
 		"setup": "node --unhandled-rejections=strict setup.js"
 	},
 	"devDependencies": {
+		"@cdellacqua/signals": "^4.1.0",
 		"@types/chai": "^4.2.22",
 		"@types/mocha": "^9.0.0",
 		"@types/node": "^16.11.10",

@@ -6,8 +6,7 @@ describe('poller', () => {
 	it('checks the poller state in different situations', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => Math.floor(Math.random() * 10),
-			consumer: () => undefined,
+			dataProvider: () => Math.floor(Math.random() * 10),
 		});
 		try {
 			expect(poller.state).to.eq('initial');
@@ -28,13 +27,13 @@ describe('poller', () => {
 		let actual: number | undefined;
 		const poller = makePoller({
 			interval: 20,
-			producer: () => {
+			dataProvider: () => {
 				i++;
 				return i;
 			},
-			consumer: (n) => {
-				actual = n;
-			},
+		});
+		poller.onData$.subscribe((n) => {
+			actual = n;
 		});
 		try {
 			expect(actual).to.be.undefined;
@@ -53,20 +52,21 @@ describe('poller', () => {
 		let actual: number | undefined;
 		const poller = makePoller({
 			interval: 20,
-			producer: () => {
+			dataProvider: () => {
 				i++;
 				return i;
 			},
-			consumer: (n) => {
-				actual = n;
-			},
+		});
+		const unsubscribe = poller.onData$.subscribe((n) => {
+			actual = n;
 		});
 		try {
+			unsubscribe();
+			poller.onData$.subscribe((n) => {
+				actual = -n;
+			});
 			await poller.restart({
-				consumer: () => {
-					actual = -i;
-				},
-				producer: () => {
+				dataProvider: () => {
 					i += 2;
 					return i;
 				},
@@ -88,17 +88,17 @@ describe('poller', () => {
 		let actual: number | undefined;
 		const poller = makePoller({
 			interval: 10,
-			producer: () => {
+			dataProvider: () => {
 				i++;
 				if (i > 2) {
 					throw new Error('catch me!');
 				}
 				return i;
 			},
-			consumer: (n) => {
-				actual = n;
-			},
 			useDynamicInterval: false,
+		});
+		poller.onData$.subscribe((n) => {
+			actual = n;
 		});
 		try {
 			let customHandlerCalls = 0;
@@ -130,11 +130,11 @@ describe('poller', () => {
 		let consumerCalls = 0;
 		const poller = makePoller({
 			interval: 20,
-			producer: () => sleep(20).then(() => undefined),
-			consumer: () => {
-				consumerCalls++;
-			},
+			dataProvider: () => sleep(20).then(() => undefined),
 			useDynamicInterval: true,
+		});
+		poller.onData$.subscribe(() => {
+			consumerCalls++;
 		});
 		try {
 			await poller.start();
@@ -153,11 +153,11 @@ describe('poller', () => {
 		let consumerCalls = 0;
 		const poller = makePoller({
 			interval: 10,
-			producer: () => sleep(10).then(() => undefined),
-			consumer: () => {
-				consumerCalls++;
-			},
+			dataProvider: () => sleep(10).then(() => undefined),
 			useDynamicInterval: false,
+		});
+		poller.onData$.subscribe(() => {
+			consumerCalls++;
 		});
 		try {
 			await poller.start();
@@ -175,8 +175,7 @@ describe('poller', () => {
 	it('starts while still running', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => sleep(10).then(() => undefined),
-			consumer: () => undefined,
+			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		try {
 			await poller.start();
@@ -192,8 +191,7 @@ describe('poller', () => {
 	it('starts while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => sleep(10).then(() => undefined),
-			consumer: () => undefined,
+			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		try {
 			await poller.start();
@@ -211,8 +209,7 @@ describe('poller', () => {
 	it('stops while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: () => sleep(10).then(() => undefined),
-			consumer: () => undefined,
+			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		try {
 			await poller.start();
@@ -231,14 +228,13 @@ describe('poller', () => {
 		let errorHandlerCalls = 0;
 		const poller = makePoller({
 			interval: 10,
-			producer: async () => {
+			dataProvider: async () => {
 				throw new Error('catch me!');
 			},
 			errorHandler: (err) => {
 				errorHandlerCalls++;
 				expect(String(err)).to.eq('Error: catch me!');
 			},
-			consumer: () => undefined,
 		});
 		try {
 			await poller.start();
@@ -251,13 +247,12 @@ describe('poller', () => {
 	it('tests a faulty error handler', async () => {
 		const poller = makePoller({
 			interval: 10,
-			producer: async () => {
+			dataProvider: async () => {
 				throw new Error('catch me!');
 			},
 			errorHandler: () => {
 				throw new Error('ops!');
 			},
-			consumer: () => undefined,
 		});
 		try {
 			await poller.start();

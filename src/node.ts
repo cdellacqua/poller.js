@@ -5,10 +5,11 @@ console.log(`Random number: -`);
 
 const poller = makePoller({
 	interval: 500,
-	producer: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
-	consumer: (n) => {
-		console.log(`Random number: ${n}`);
-	},
+	dataProvider: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
+});
+
+poller.onData$.subscribe((n) => {
+	console.log(`Random number: ${n}`);
 });
 
 poller.state$.subscribe((state) => console.log(`Poller state: ${state}`));

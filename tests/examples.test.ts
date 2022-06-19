@@ -7,20 +7,19 @@ describe('examples', () => {
 		expect(() =>
 			makePoller({
 				interval: 500,
-				producer: () => Math.floor(Math.random() * 10),
-				consumer: (n) => console.log(`Random number: ${n}`),
+				dataProvider: () => Math.floor(Math.random() * 10),
 			}),
 		).not.to.throw();
 	});
-	it('readme 1', async () => {
+	it('readme 1, 2', async () => {
 		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
 		let actual = 0;
 		const poller = makePoller({
 			interval: 10,
-			producer: () => fakeFetch('http://www.example.com/'),
-			consumer: (response) => {
-				actual = response.status;
-			},
+			dataProvider: () => fakeFetch('http://www.example.com/'),
+		});
+		poller.onData$.subscribe((response) => {
+			actual = response.status;
 		});
 		try {
 			await poller.start();
@@ -30,15 +29,52 @@ describe('examples', () => {
 			await poller.stop();
 		}
 	});
-	it('readme 1', async () => {
+	it('readme 2.5', (done) => {
 		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
 		let calls = 0;
 		const poller = makePoller({
 			interval: 10,
-			producer: () => fakeFetch('http://www.example.com/'),
-			consumer: () => {
-				calls++;
+			dataProvider: () => fakeFetch('http://www.example.com/'),
+		});
+		poller.start().catch(done);
+		const unsubscribe = poller.onData$.subscribe(() => {
+			calls++;
+		});
+		setTimeout(() => {
+			unsubscribe();
+			expect(calls).to.eq(1);
+			poller.stop().then(() => done(), done);
+		}, 15);
+	});
+	it('readme 2.75', async () => {
+		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
+		let calls = 0;
+		const poller = makePoller({
+			interval: 10,
+			dataProvider: async () => {
+				await fakeFetch('http://www.example.com/');
 			},
+		});
+		try {
+			await poller.start();
+			poller.onData$.subscribe(() => {
+				calls++;
+			});
+			await sleep(10);
+			expect(calls).to.eq(1);
+		} finally {
+			await poller.stop();
+		}
+	});
+	it('readme 3', async () => {
+		const fakeFetch = (_: string) => sleep(10).then(() => ({status: 200}));
+		let calls = 0;
+		const poller = makePoller({
+			interval: 10,
+			dataProvider: () => fakeFetch('http://www.example.com/'),
+		});
+		poller.onData$.subscribe(() => {
+			calls++;
 		});
 		try {
 			await poller.restart({

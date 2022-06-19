@@ -37,10 +37,11 @@ appDiv.appendChild(restartButton);
 
 const poller = makePoller({
 	interval: 500,
-	producer: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
-	consumer: (n) => {
-		randomNumberDiv.textContent = `Random number: ${n}`;
-	},
+	dataProvider: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
+});
+
+poller.onData$.subscribe((n) => {
+	randomNumberDiv.textContent = `Random number: ${n}`;
 });
 
 poller.state$.subscribe((state) => (stateDiv.textContent = `Poller state: ${state}`));

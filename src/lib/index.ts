@@ -148,18 +148,14 @@ export function makePoller<T>({
 				try {
 					if (overriddenUseDynamicInterval) {
 						const startedAt = overriddenMonotonicTimeProvider();
-						// Note: do not merge the following two statements.
-						// await overriddenConsumer?.(await overriddenProducer()); does not work, because in case there were no consumer, the runtime would skip the producer call.
 						const produced = await overriddenProducer();
-						await overriddenConsumer?.(produced);
+						await overriddenConsumer(produced);
 						const now = overriddenMonotonicTimeProvider();
 						const passedTime = now - startedAt;
 						sleepPromise = sleep(Math.max(0, overriddenInterval - passedTime));
 					} else {
-						// Note: do not merge the following two statements.
-						// await overriddenConsumer?.(await overriddenProducer()); does not work, because in case there were no consumer, the runtime would skip the producer call.
 						const produced = await overriddenProducer();
-						await overriddenConsumer?.(produced);
+						await overriddenConsumer(produced);
 						sleepPromise = sleep(overriddenInterval);
 					}
 					await sleepPromise;

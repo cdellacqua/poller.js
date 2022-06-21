@@ -134,7 +134,7 @@ describe('examples', () => {
 	it('readme - AbortController', async () => {
 		let error: unknown;
 		const fakeFetch = (_: string, {signal}: {signal: AbortSignal}) => {
-			return new Promise((_, rej) => {
+			return new Promise((_res, rej) => {
 				signal.addEventListener('abort', () => {
 					rej(new DOMException('failed'));
 				});

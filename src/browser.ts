@@ -26,6 +26,14 @@ stopButton.onclick = () =>
 		(err) => console.error('ops', err),
 	);
 appDiv.appendChild(stopButton);
+const abortButton = document.createElement('button');
+abortButton.textContent = 'Force Stop';
+abortButton.onclick = () =>
+	poller.abort().then(
+		() => console.log('successfully stopped'),
+		(err) => console.error('ops', err),
+	);
+appDiv.appendChild(abortButton);
 const restartButton = document.createElement('button');
 restartButton.textContent = 'Restart';
 restartButton.onclick = () =>
@@ -37,7 +45,14 @@ appDiv.appendChild(restartButton);
 
 const poller = makePoller({
 	interval: 500,
-	dataProvider: () => sleep(1000).then(() => Math.floor(Math.random() * 10)),
+	dataProvider: async (onAbort$) => {
+		const sleepPromise = sleep(500);
+		onAbort$.subscribe(() => {
+			sleepPromise.abort(new Error('forced stop'));
+		});
+		await sleepPromise;
+		return Math.floor(Math.random() * 10);
+	},
 });
 
 poller.onData$.subscribe((n) => {

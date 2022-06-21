@@ -15,9 +15,10 @@ implementation that should cover most use-cases.
 
 A `Poller<T>` is an object that provides the following methods:
 
-- `start()`;
-- `stop()`;
-- `restart()` (or `restart({...})` to override some settings).
+- `start()`, to start polling;
+- `stop()`, to stop, waiting for a pending request if necessary;
+- `abort()`, to stop, signaling a force stop to the pending request;
+- `restart()` (or `restart({...})` to override some settings), to restart the poller, possibly changing its configuration.
 
 Other than those methods there is also a property called `state`
 which contains one of the following values: 'initial', 'running', 'stopping' or 'stopped'.
@@ -56,7 +57,7 @@ examplePoller.start().then(() => console.log('polling started'));
 The other configuration parameters are:
 
 - `monotonicTimeProvider`, a function that returns the current time in milliseconds. Defaults to `performance.now`;
-- `retryInterval`, a delay (in milliseconds) used when the `dataProvider` throws an error. Defaults to `interval`;
+- `retryInterval`, a delay (in milliseconds) used when the `dataProvider` throws an error. Defaults to the same value as `interval`;
 - `errorHandler`, a callback that will receive the error thrown by the `dataProvider`. Defaults to `console.error`;
 - `useDynamicInterval`, a boolean that determines whether or not the specified interval between polling cycles should
   be used as-is (`false`) or adjusted (`true`) to take into account the time spent in the `dataProvider`. Defaults to `true`.
@@ -73,7 +74,7 @@ const examplePoller = makePoller({
 	interval: 5000,
 	dataProvider: () => fetch('http://www.example.com/'),
 });
-examplePoller.onData$.subscribe(({status}) => console.log(`Received status ${status}`));
+examplePoller.onData$.subscribe((response) => console.log(`Received status ${response.status}`));
 examplePoller.start().then(() => console.log('polling started'));
 ```
 
@@ -108,7 +109,7 @@ examplePoller.onData$.subscribe(() => console.log('fetch completed'));
 examplePoller.start().then(() => console.log('polling started'));
 ```
 
-## Notes on async
+## Stopping an async task and aborting a pending request
 
 Once you create a `Poller<T>`, you will be able to start and stop it.
 
@@ -116,7 +117,7 @@ Both `start` and `stop` are async methods. The returned promise will let
 the caller know when the polling actually starts or stops, taking into
 account a pending polling operation.
 
-As an example, when a poller is running it could be in two distinct scenarios:
+When a poller is running, it will find itself in one of the following states:
 
 - idling while waiting for the specified interval to pass;
 - waiting for the `dataProvider` to finish its processing.
@@ -124,6 +125,51 @@ As an example, when a poller is running it could be in two distinct scenarios:
 In the first scenario, calling `stop` will resolve almost immediately, cancelling
 the delay, while in the second scenario it's necessary to wait for
 the `dataProvider` to complete (or throw an error).
+
+### (Advance) Aborting a dataProvider task
+
+An `onAbort$` signal (that can emit at most once) is passed to the
+`dataProvider` at every polling cycle.
+This signal emits when the `abort()` method is called.
+Note that calling `abort()` multiple times won't emit the signal again if the currently
+pending `dataProvider` already received it.
+
+By registering to the `onAbort$` signal, a `dataProvider` can
+try to interrupt its task (e.g. an XHR request), therefore
+letting the poller stop more rapidly.
+
+Here is an example that uses the fetch API and the AbortController:
+
+```ts
+import {makePoller} from 'reactive-poller';
+
+const examplePoller = makePoller({
+	interval: 5000,
+	dataProvider: (onAbort$) => {
+		const abortController = new AbortController();
+		onAbort$.subscribe(() => abortController.abort());
+		return fetch('http://www.example.com/', {signal: abortController.signal});
+	},
+	errorHandler: (err) => {
+		if (err instanceof DOMException && err.name === 'AbortError') {
+			// ignore
+			return;
+		}
+		console.error(err);
+	},
+});
+
+examplePoller.start().then(() => console.log('polling started'));
+examplePoller.abort().then(() => console.log('polling stopped'));
+```
+
+You can also pass a value to the `abort` method (usually an Error type) that
+represents the reason for the abrupt stop of the poller.
+
+```ts
+// ...
+examplePoller.abort(new Error('user logged out'));
+```
 
 ## Restarting a poller
 

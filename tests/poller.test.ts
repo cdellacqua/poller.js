@@ -1,32 +1,76 @@
-import {expect} from 'chai';
-import {makePoller} from '../src/lib';
+import spies from 'chai-spies';
+import chai, {expect} from 'chai';
 import {sleep} from '@cdellacqua/sleep';
+import {makePoller} from '../src/lib';
+
+chai.use(spies);
+
+function nextTick() {
+	return Promise.resolve();
+}
+
+let pendingSetTimeouts: {callback(): void; ttl: number}[] = [];
+async function nextMillisecond() {
+	pendingSetTimeouts.forEach((x) => {
+		if (x.ttl > 0) {
+			x.ttl--;
+		}
+	});
+	const expired = pendingSetTimeouts.filter((x) => x.ttl === 0);
+	expired.forEach((x) => x.callback());
+	pendingSetTimeouts = pendingSetTimeouts.filter((x) => x.ttl > 0);
+
+	await nextTick();
+	await nextTick();
+}
+async function nextMilliseconds(ms: number) {
+	for (let i = 0; i < ms; i++) {
+		await nextMillisecond();
+	}
+}
+function resolveAllPendingSetTimeout() {
+	pendingSetTimeouts.forEach((x) => {
+		x.callback();
+	});
+	pendingSetTimeouts = [];
+}
 
 describe('poller', () => {
+	let setTimeoutSandbox: ChaiSpies.Sandbox | undefined;
+	before(() => {
+		setTimeoutSandbox = chai.spy.sandbox();
+		setTimeoutSandbox.on(globalThis, 'setTimeout', (callback, ms, ...params) => {
+			pendingSetTimeouts.push({
+				callback: () => callback(...params),
+				ttl: ms,
+			});
+		});
+	});
+	after(() => {
+		setTimeoutSandbox?.restore();
+		setTimeoutSandbox = undefined;
+	});
 	it('checks the poller state in different situations', async () => {
 		const poller = makePoller({
 			interval: 10,
 			dataProvider: () => Math.floor(Math.random() * 10),
 		});
-		try {
-			expect(poller.state).to.eq('initial');
-			await poller.stop();
-			expect(poller.state).to.eq('initial');
-			await poller.start();
-			expect(poller.state).to.eq('running');
-			const stopPromise = poller.stop();
-			expect(poller.state).to.eq('stopping');
-			await stopPromise;
-			expect(poller.state).to.eq('stopped');
-		} finally {
-			await poller.stop();
-		}
+		expect(poller.state).to.eq('initial');
+		await poller.stop();
+		expect(poller.state).to.eq('initial');
+		await poller.start();
+		expect(poller.state).to.eq('running');
+		const stopPromise = poller.stop();
+		expect(poller.state).to.eq('stopping');
+		resolveAllPendingSetTimeout();
+		await stopPromise;
+		expect(poller.state).to.eq('stopped');
 	});
 	it('checks that the poller is fetching values from a synchronous producer', async () => {
 		let i = 0;
 		let actual: number | undefined;
 		const poller = makePoller({
-			interval: 20,
+			interval: 2,
 			dataProvider: () => {
 				i++;
 				return i;
@@ -35,59 +79,57 @@ describe('poller', () => {
 		poller.onData$.subscribe((n) => {
 			actual = n;
 		});
-		try {
-			expect(actual).to.be.undefined;
-			await poller.start();
-			expect(actual).to.eq(1);
-			await sleep(24);
-			expect(actual).to.eq(2);
-			await poller.stop();
-			expect(actual).to.eq(2);
-		} finally {
-			await poller.stop();
-		}
+		expect(actual).to.be.undefined;
+		await poller.start();
+
+		expect(actual).to.eq(1);
+		await nextMilliseconds(2);
+
+		expect(actual).to.eq(2);
+		await poller.stop();
+		expect(actual).to.eq(2);
 	});
 	it('overrides some poller settings', async () => {
 		let i = 0;
 		let actual: number | undefined;
 		const poller = makePoller({
-			interval: 20,
+			interval: 2,
 			dataProvider: () => {
 				i++;
 				return i;
 			},
+			monotonicTimeProvider: () => 0,
 		});
 		const unsubscribe = poller.onData$.subscribe((n) => {
 			actual = n;
 		});
-		try {
-			unsubscribe();
-			poller.onData$.subscribe((n) => {
-				actual = -n;
-			});
-			await poller.restart({
-				dataProvider: () => {
-					i += 2;
-					return i;
-				},
-				interval: 40,
-			});
-			expect(actual).to.eq(-2);
-			await sleep(24);
-			expect(actual).to.eq(-2);
-			await sleep(20);
-			expect(actual).to.eq(-4);
-			await poller.stop();
-			expect(actual).to.eq(-4);
-		} finally {
-			await poller.stop();
-		}
+		unsubscribe();
+		poller.onData$.subscribe((n) => {
+			actual = -n;
+		});
+		await poller.restart({
+			dataProvider: () => {
+				i += 2;
+				return i;
+			},
+			interval: 4,
+		});
+
+		expect(actual).to.eq(-2);
+		await nextMilliseconds(2);
+
+		expect(actual).to.eq(-2);
+		await nextMilliseconds(2);
+
+		expect(actual).to.eq(-4);
+		await poller.stop();
+		expect(actual).to.eq(-4);
 	});
 	it('overrides more complex settings', async () => {
 		let i = 0;
 		let actual: number | undefined;
 		const poller = makePoller({
-			interval: 10,
+			interval: 1,
 			dataProvider: () => {
 				i++;
 				if (i > 2) {
@@ -100,134 +142,131 @@ describe('poller', () => {
 		poller.onData$.subscribe((n) => {
 			actual = n;
 		});
-		try {
-			let customHandlerCalls = 0;
-			let fakeTime = 0;
-			await poller.restart({
-				errorHandler: () => {
-					customHandlerCalls++;
-				},
-				monotonicTimeProvider: () => {
-					fakeTime++;
-					return fakeTime;
-				},
-				retryInterval: 5,
-				useDynamicInterval: true,
-			});
-			expect(actual).to.eq(1);
-			await sleep(14);
-			expect(actual).to.eq(2);
-			await sleep(18);
-			expect(actual).to.eq(2);
-			expect(customHandlerCalls).to.eq(3);
-			await poller.stop();
-			expect(actual).to.eq(2);
-		} finally {
-			await poller.stop();
-		}
+		let customHandlerCalls = 0;
+		let fakeTime = 0;
+		await nextMillisecond();
+		await poller.restart({
+			errorHandler: () => {
+				customHandlerCalls++;
+			},
+			monotonicTimeProvider: () => {
+				fakeTime++;
+				return fakeTime;
+			},
+			retryInterval: 3,
+			useDynamicInterval: true,
+		});
+		expect(actual).to.eq(1);
+		await nextMillisecond();
+		expect(actual).to.eq(2);
+		await nextMillisecond();
+		expect(actual).to.eq(2);
+		await nextMilliseconds(3 * 3);
+		expect(customHandlerCalls).to.eq(3);
+		await nextMillisecond();
+		await poller.stop();
+		expect(actual).to.eq(2);
 	});
 	it('tests dynamic interval', async () => {
 		let consumerCalls = 0;
+		let fakeTime = 0;
 		const poller = makePoller({
-			interval: 20,
-			dataProvider: () => sleep(20).then(() => undefined),
+			interval: 2,
+			dataProvider: () => sleep(4).then(() => undefined),
 			useDynamicInterval: true,
+			monotonicTimeProvider: () => {
+				fakeTime++;
+				return fakeTime;
+			},
 		});
 		poller.onData$.subscribe(() => {
 			consumerCalls++;
 		});
-		try {
-			await poller.start();
-			expect(consumerCalls).to.eq(0);
-			await sleep(24);
-			expect(consumerCalls).to.eq(1);
-			await sleep(24);
-			expect(consumerCalls).to.eq(2);
-			await sleep(24);
-			expect(consumerCalls).to.eq(3);
-		} finally {
-			await poller.stop();
-		}
+		await poller.start();
+		expect(consumerCalls).to.eq(0);
+		await nextMilliseconds(4);
+		await nextMilliseconds(1);
+		expect(consumerCalls).to.eq(1);
+		await nextMilliseconds(4);
+		await nextMilliseconds(1);
+		expect(consumerCalls).to.eq(2);
+		await nextMilliseconds(4);
+		await nextMilliseconds(1);
+		expect(consumerCalls).to.eq(3);
+		resolveAllPendingSetTimeout();
+		await poller.stop();
 	});
 	it('tests static interval', async () => {
 		let consumerCalls = 0;
 		const poller = makePoller({
-			interval: 10,
-			dataProvider: () => sleep(10).then(() => undefined),
+			interval: 1,
+			dataProvider: () => sleep(1).then(() => undefined),
 			useDynamicInterval: false,
 		});
 		poller.onData$.subscribe(() => {
 			consumerCalls++;
 		});
-		try {
-			await poller.start();
-			expect(consumerCalls).to.eq(0);
-			await sleep(21);
-			expect(consumerCalls).to.eq(1);
-			await sleep(21);
-			expect(consumerCalls).to.eq(2);
-			await sleep(21);
-			expect(consumerCalls).to.eq(3);
-		} finally {
-			await poller.stop();
-		}
+
+		await poller.start();
+		expect(consumerCalls).to.eq(0);
+		await nextMilliseconds(2);
+		expect(consumerCalls).to.eq(1);
+		await nextMilliseconds(2);
+		expect(consumerCalls).to.eq(2);
+		await nextMilliseconds(2);
+		expect(consumerCalls).to.eq(3);
+		resolveAllPendingSetTimeout();
+		await poller.stop();
 	});
 	it('starts while still running', async () => {
 		const poller = makePoller({
 			interval: 10,
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
-		try {
-			await poller.start();
-			expect(poller.state).to.eq('running');
-			await poller.start();
-			expect(poller.state).to.eq('running');
-			await poller.stop();
-			expect(poller.state).to.eq('stopped');
-		} finally {
-			await poller.stop();
-		}
+		await poller.start();
+		expect(poller.state).to.eq('running');
+		await poller.start();
+		expect(poller.state).to.eq('running');
+		resolveAllPendingSetTimeout();
+		await poller.stop();
+		expect(poller.state).to.eq('stopped');
 	});
 	it('starts while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
-		try {
-			await poller.start();
-			expect(poller.state).to.eq('running');
-			const stopPromise = poller.stop();
-			expect(poller.state).to.eq('stopping');
-			const startPromise = poller.start();
-			expect(poller.state).to.eq('stopping');
-			await Promise.all([stopPromise, startPromise]);
-			expect(poller.state).to.eq('running');
-		} finally {
-			await poller.stop();
-		}
+		await poller.start();
+		expect(poller.state).to.eq('running');
+		const stopPromise = poller.stop();
+		expect(poller.state).to.eq('stopping');
+		const startPromise = poller.start();
+		expect(poller.state).to.eq('stopping');
+		resolveAllPendingSetTimeout();
+		await Promise.all([stopPromise, startPromise]);
+		expect(poller.state).to.eq('running');
+		resolveAllPendingSetTimeout();
+		await poller.stop();
 	});
 	it('stops while stopping', async () => {
 		const poller = makePoller({
 			interval: 10,
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
-		try {
-			await poller.start();
-			expect(poller.state).to.eq('running');
-			const stopPromise1 = poller.stop();
-			expect(poller.state).to.eq('stopping');
-			const stopPromise2 = poller.stop();
-			expect(poller.state).to.eq('stopping');
-			await Promise.all([stopPromise1, stopPromise2]);
-			expect(poller.state).to.eq('stopped');
-		} finally {
-			await poller.stop();
-		}
+		await poller.start();
+		expect(poller.state).to.eq('running');
+		const stopPromise1 = poller.stop();
+		expect(poller.state).to.eq('stopping');
+		const stopPromise2 = poller.stop();
+		expect(poller.state).to.eq('stopping');
+		resolveAllPendingSetTimeout();
+		await Promise.all([stopPromise1, stopPromise2]);
+		expect(poller.state).to.eq('stopped');
 	});
 	it('tests the error handler', async () => {
 		let errorHandlerCalls = 0;
 		const poller = makePoller({
-			interval: 10,
+			interval: 1,
 			dataProvider: async () => {
 				throw new Error('catch me!');
 			},
@@ -235,14 +274,13 @@ describe('poller', () => {
 				errorHandlerCalls++;
 				expect(String(err)).to.eq('Error: catch me!');
 			},
+			monotonicTimeProvider: () => 0,
 		});
-		try {
-			await poller.start();
-			await sleep(1);
-			expect(errorHandlerCalls).to.eq(1);
-		} finally {
-			await poller.stop();
-		}
+		await poller.start();
+		await nextMillisecond();
+		expect(errorHandlerCalls).to.eq(1);
+		resolveAllPendingSetTimeout();
+		await poller.stop();
 	});
 	it('tests a faulty error handler', async () => {
 		const poller = makePoller({
@@ -254,12 +292,97 @@ describe('poller', () => {
 				throw new Error('ops!');
 			},
 		});
-		try {
+		await poller.start();
+		await nextMillisecond();
+		expect(poller.state).to.eq('running');
+		resolveAllPendingSetTimeout();
+		await poller.stop();
+	});
+	it('stops sending the abort signal', (done) => {
+		const poller = makePoller({
+			dataProvider: (onAbort$) => {
+				return new Promise<void>((_, rej) => {
+					onAbort$.subscribe(() => {
+						rej();
+					});
+				});
+			},
+			interval: 0,
+		});
+		(async () => {
 			await poller.start();
-			await sleep(1);
+			poller.stop().catch(done);
+			await nextMillisecond();
+			expect(poller.state).to.eq('stopping');
+			await poller.abort();
+			expect(poller.state).to.eq('stopped');
+			done();
+		})().catch(done);
+	});
+	it('stops sending the abort signal with a payload', (done) => {
+		const poller = makePoller<number>({
+			dataProvider: (onAbort$) => {
+				return new Promise<number>((_, rej) => {
+					onAbort$.subscribe((payload) => {
+						expect(payload).to.eq('bye!');
+						rej(payload);
+					});
+				});
+			},
+			interval: 0,
+		});
+		(async () => {
+			await poller.start();
 			expect(poller.state).to.eq('running');
-		} finally {
-			await poller.stop();
-		}
+			await poller.abort('bye!');
+			done();
+			expect(poller.state).to.eq('stopped');
+		})().catch(done);
+	});
+	it('stops sending the abort signal with a payload after normal stop', (done) => {
+		const poller = makePoller<number>({
+			dataProvider: (onAbort$) => {
+				return new Promise<number>((_, rej) => {
+					onAbort$.subscribe((payload) => {
+						expect(payload).to.eq('bye!');
+						rej(payload);
+					});
+				});
+			},
+			interval: 0,
+			monotonicTimeProvider: () => 0,
+		});
+		(async () => {
+			await poller.start();
+			poller.stop().catch(done);
+			expect(poller.state).to.eq('stopping');
+			await poller.abort('bye!');
+			expect(poller.state).to.eq('stopped');
+			done();
+		})().catch(done);
+	});
+	it('stops sending the abort signal multiple times', (done) => {
+		let receivedAbortEvents = 0;
+		const poller = makePoller<number>({
+			dataProvider: (onAbort$) => {
+				return new Promise<number>(() => {
+					onAbort$.subscribe(() => {
+						receivedAbortEvents++;
+						expect(receivedAbortEvents).to.eq(1);
+					});
+				});
+			},
+			interval: 0,
+			monotonicTimeProvider: () => 0,
+		});
+		(async () => {
+			await poller.start();
+			poller.abort().catch(done);
+			poller.abort().catch(done);
+			poller.abort().catch(done);
+			poller.abort().catch(done);
+			expect(poller.state).to.eq('stopping');
+			done();
+		})().catch(done);
 	});
 });

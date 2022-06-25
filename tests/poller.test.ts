@@ -302,7 +302,7 @@ describe('poller', () => {
 		const poller = makePoller({
 			dataProvider: (onAbort$) => {
 				return new Promise<void>((_, rej) => {
-					onAbort$.subscribe(() => {
+					onAbort$.subscribeOnce(() => {
 						rej();
 					});
 				});
@@ -323,7 +323,7 @@ describe('poller', () => {
 		const poller = makePoller<number, 'bye!'>({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>((_, rej) => {
-					onAbort$.subscribe((payload) => {
+					onAbort$.subscribeOnce((payload) => {
 						expect(payload).to.eq('bye!');
 						rej(payload);
 					});
@@ -343,7 +343,7 @@ describe('poller', () => {
 		const poller = makePoller<number, 'bye!'>({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>((_, rej) => {
-					onAbort$.subscribe((payload) => {
+					onAbort$.subscribeOnce((payload) => {
 						expect(payload).to.eq('bye!');
 						rej(payload);
 					});
@@ -366,7 +366,7 @@ describe('poller', () => {
 		const poller = makePoller({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>(() => {
-					onAbort$.subscribe(() => {
+					onAbort$.subscribeOnce(() => {
 						receivedAbortEvents++;
 						expect(receivedAbortEvents).to.eq(1);
 					});

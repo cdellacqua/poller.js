@@ -45,7 +45,6 @@
 		"setup": "node --unhandled-rejections=strict setup.js"
 	},
 	"devDependencies": {
-		"@cdellacqua/signals": "^4.1.0",
 		"@types/chai": "^4.2.22",
 		"@types/chai-spies": "^1.0.3",
 		"@types/mocha": "^9.0.0",
@@ -69,6 +68,7 @@
 		"vite": "^2.6.4"
 	},
 	"dependencies": {
+		"@cdellacqua/signals": "^4.1.1",
 		"@cdellacqua/sleep": "^4.0.0",
 		"universal-stores": "^1.1.2"
 	}

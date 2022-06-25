@@ -1,6 +1,7 @@
 import './style.css';
 import {makePoller} from './lib';
 import {sleep} from '@cdellacqua/sleep';
+import {deriveSignal} from '@cdellacqua/signals';
 
 const appDiv = document.getElementById('app') as HTMLDivElement;
 
@@ -43,14 +44,10 @@ restartButton.onclick = () =>
 	);
 appDiv.appendChild(restartButton);
 
-const poller = makePoller({
+const poller = makePoller<number, void>({
 	interval: 500,
 	dataProvider: async (onAbort$) => {
-		const sleepPromise = sleep(500);
-		onAbort$.subscribe(() => {
-			sleepPromise.abort(new Error('forced stop'));
-		});
-		await sleepPromise;
+		await sleep(500, {hurry$: deriveSignal(onAbort$, () => undefined)});
 		return Math.floor(Math.random() * 10);
 	},
 });

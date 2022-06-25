@@ -140,7 +140,7 @@ describe('examples', () => {
 				});
 			});
 		};
-		const poller = makePoller({
+		const poller = makePoller<unknown, void>({
 			interval: 5000,
 			dataProvider: (onAbort$) => {
 				const abortController = new AbortController();

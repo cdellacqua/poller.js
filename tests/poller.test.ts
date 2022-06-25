@@ -299,7 +299,7 @@ describe('poller', () => {
 		await poller.stop();
 	});
 	it('stops sending the abort signal', (done) => {
-		const poller = makePoller({
+		const poller = makePoller<unknown, void>({
 			dataProvider: (onAbort$) => {
 				return new Promise<void>((_, rej) => {
 					onAbort$.subscribe(() => {
@@ -363,7 +363,7 @@ describe('poller', () => {
 	});
 	it('stops sending the abort signal multiple times', (done) => {
 		let receivedAbortEvents = 0;
-		const poller = makePoller<number>({
+		const poller = makePoller<number, void>({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>(() => {
 					onAbort$.subscribe(() => {

@@ -143,7 +143,7 @@ Here is an example that uses the fetch API and the AbortController:
 ```ts
 import {makePoller} from 'reactive-poller';
 
-const examplePoller = makePoller({
+const examplePoller = makePoller<Response, void>({
 	interval: 5000,
 	dataProvider: (onAbort$) => {
 		const abortController = new AbortController();
@@ -163,12 +163,21 @@ examplePoller.start().then(() => console.log('polling started'));
 examplePoller.abort().then(() => console.log('polling stopped'));
 ```
 
-You can also pass a value to the `abort` method (usually an Error type) that
+You can also pass a value to the `abort` method that
 represents the reason for the abrupt stop of the poller.
 
 ```ts
-// ...
+const examplePoller = makePoller<Response, Error | void>({
+	// ...
+});
 examplePoller.abort(new Error('user logged out'));
+
+// ...or, using string...
+
+const examplePoller = makePoller<Response, 'timeout' | 'cancelled-by-user'>({
+	// ...
+});
+examplePoller.abort('timeout');
 ```
 
 ## Restarting a poller

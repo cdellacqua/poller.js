@@ -44,7 +44,7 @@ restartButton.onclick = () =>
 	);
 appDiv.appendChild(restartButton);
 
-const poller = makePoller<number, void>({
+const poller = makePoller<number>({
 	interval: 500,
 	dataProvider: async (onAbort$) => {
 		await sleep(500, {hurry$: deriveSignal(onAbort$, () => undefined)});

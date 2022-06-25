@@ -299,7 +299,7 @@ describe('poller', () => {
 		await poller.stop();
 	});
 	it('stops sending the abort signal', (done) => {
-		const poller = makePoller<unknown, void>({
+		const poller = makePoller({
 			dataProvider: (onAbort$) => {
 				return new Promise<void>((_, rej) => {
 					onAbort$.subscribe(() => {
@@ -320,7 +320,7 @@ describe('poller', () => {
 		})().catch(done);
 	});
 	it('stops sending the abort signal with a payload', (done) => {
-		const poller = makePoller<number>({
+		const poller = makePoller<number, 'bye!'>({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>((_, rej) => {
 					onAbort$.subscribe((payload) => {
@@ -340,7 +340,7 @@ describe('poller', () => {
 		})().catch(done);
 	});
 	it('stops sending the abort signal with a payload after normal stop', (done) => {
-		const poller = makePoller<number>({
+		const poller = makePoller<number, 'bye!'>({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>((_, rej) => {
 					onAbort$.subscribe((payload) => {
@@ -363,7 +363,7 @@ describe('poller', () => {
 	});
 	it('stops sending the abort signal multiple times', (done) => {
 		let receivedAbortEvents = 0;
-		const poller = makePoller<number, void>({
+		const poller = makePoller({
 			dataProvider: (onAbort$) => {
 				return new Promise<number>(() => {
 					onAbort$.subscribe(() => {

@@ -136,7 +136,7 @@ export type Poller<T, TAbort> = {
  * @param config a object containing the desired configuration of the poller. See {@link MakePollerParams}
  * @returns a poller.
  */
-export function makePoller<T, TAbort = unknown>({
+export function makePoller<T, TAbort = void>({
 	dataProvider,
 	errorHandler,
 	interval,

@@ -143,7 +143,7 @@ Here is an example that uses the fetch API and the AbortController:
 ```ts
 import {makePoller} from 'reactive-poller';
 
-const examplePoller = makePoller<Response, void>({
+const examplePoller = makePoller({
 	interval: 5000,
 	dataProvider: (onAbort$) => {
 		const abortController = new AbortController();

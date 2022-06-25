@@ -111,7 +111,7 @@ poller.start()
 | Name | Type |
 | :------ | :------ |
 | `T` | `T` |
-| `TAbort` | `unknown` |
+| `TAbort` | `void` |
 
 #### Parameters
 

@@ -2,7 +2,7 @@
 	"name": "reactive-poller",
 	"camelCaseName": "reactivePoller",
 	"description": "A polling library.",
-	"version": "2.2.2",
+	"version": "2.2.3",
 	"type": "module",
 	"types": "dist/index.d.ts",
 	"main": "dist/index.cjs",

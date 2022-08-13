@@ -55,16 +55,16 @@ describe('poller', () => {
 			interval: 10,
 			dataProvider: () => Math.floor(Math.random() * 10),
 		});
-		expect(poller.state).to.eq('initial');
+		expect(poller.state$.content()).to.eq('initial');
 		await poller.stop();
-		expect(poller.state).to.eq('initial');
+		expect(poller.state$.content()).to.eq('initial');
 		await poller.start();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		const stopPromise = poller.stop();
-		expect(poller.state).to.eq('stopping');
+		expect(poller.state$.content()).to.eq('stopping');
 		resolveAllPendingSetTimeout();
 		await stopPromise;
-		expect(poller.state).to.eq('stopped');
+		expect(poller.state$.content()).to.eq('stopped');
 	});
 	it('checks that the poller is fetching values from a synchronous producer', async () => {
 		let i = 0;
@@ -224,12 +224,12 @@ describe('poller', () => {
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		await poller.start();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		await poller.start();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		resolveAllPendingSetTimeout();
 		await poller.stop();
-		expect(poller.state).to.eq('stopped');
+		expect(poller.state$.content()).to.eq('stopped');
 	});
 	it('starts while stopping', async () => {
 		const poller = makePoller({
@@ -237,14 +237,14 @@ describe('poller', () => {
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		await poller.start();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		const stopPromise = poller.stop();
-		expect(poller.state).to.eq('stopping');
+		expect(poller.state$.content()).to.eq('stopping');
 		const startPromise = poller.start();
-		expect(poller.state).to.eq('stopping');
+		expect(poller.state$.content()).to.eq('stopping');
 		resolveAllPendingSetTimeout();
 		await Promise.all([stopPromise, startPromise]);
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		resolveAllPendingSetTimeout();
 		await poller.stop();
 	});
@@ -254,14 +254,14 @@ describe('poller', () => {
 			dataProvider: () => sleep(10).then(() => undefined),
 		});
 		await poller.start();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		const stopPromise1 = poller.stop();
-		expect(poller.state).to.eq('stopping');
+		expect(poller.state$.content()).to.eq('stopping');
 		const stopPromise2 = poller.stop();
-		expect(poller.state).to.eq('stopping');
+		expect(poller.state$.content()).to.eq('stopping');
 		resolveAllPendingSetTimeout();
 		await Promise.all([stopPromise1, stopPromise2]);
-		expect(poller.state).to.eq('stopped');
+		expect(poller.state$.content()).to.eq('stopped');
 	});
 	it('tests the error handler', async () => {
 		let errorHandlerCalls = 0;
@@ -294,7 +294,7 @@ describe('poller', () => {
 		});
 		await poller.start();
 		await nextMillisecond();
-		expect(poller.state).to.eq('running');
+		expect(poller.state$.content()).to.eq('running');
 		resolveAllPendingSetTimeout();
 		await poller.stop();
 	});
@@ -313,9 +313,9 @@ describe('poller', () => {
 			await poller.start();
 			poller.stop().catch(done);
 			await nextMillisecond();
-			expect(poller.state).to.eq('stopping');
+			expect(poller.state$.content()).to.eq('stopping');
 			await poller.abort();
-			expect(poller.state).to.eq('stopped');
+			expect(poller.state$.content()).to.eq('stopped');
 			done();
 		})().catch(done);
 	});
@@ -333,10 +333,10 @@ describe('poller', () => {
 		});
 		(async () => {
 			await poller.start();
-			expect(poller.state).to.eq('running');
+			expect(poller.state$.content()).to.eq('running');
 			await poller.abort('bye!');
 			done();
-			expect(poller.state).to.eq('stopped');
+			expect(poller.state$.content()).to.eq('stopped');
 		})().catch(done);
 	});
 	it('stops sending the abort signal with a payload after normal stop', (done) => {
@@ -355,9 +355,9 @@ describe('poller', () => {
 		(async () => {
 			await poller.start();
 			poller.stop().catch(done);
-			expect(poller.state).to.eq('stopping');
+			expect(poller.state$.content()).to.eq('stopping');
 			await poller.abort('bye!');
-			expect(poller.state).to.eq('stopped');
+			expect(poller.state$.content()).to.eq('stopped');
 			done();
 		})().catch(done);
 	});
@@ -381,7 +381,7 @@ describe('poller', () => {
 			poller.abort().catch(done);
 			poller.abort().catch(done);
 			poller.abort().catch(done);
-			expect(poller.state).to.eq('stopping');
+			expect(poller.state$.content()).to.eq('stopping');
 			done();
 		})().catch(done);
 	});

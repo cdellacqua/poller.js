@@ -67,10 +67,6 @@ export type PollerState = 'initial' | 'running' | 'stopping' | 'stopped';
  */
 export type Poller<T, TAbort> = {
 	/**
-	 * Return the current state of the poller. See {@link PollerState}.
-	 */
-	get state(): PollerState;
-	/**
 	 * A store containing the current state of the poller. See {@link PollerState}.
 	 */
 	state$: ReadonlyStore<PollerState>;
@@ -155,10 +151,11 @@ export function makePoller<T, TAbort = void>({
 	const defaultMonotonicTimeProvider = monotonicTimeProvider ?? (() => performance.now());
 
 	async function start(overrides?: Partial<MakePollerParams<T, TAbort>>) {
-		if (state$.value === 'running') {
+		const currentState = state$.content();
+		if (currentState === 'running') {
 			return;
 		}
-		if (state$.value === 'stopping') {
+		if (currentState === 'stopping') {
 			await stoppingPromise;
 		}
 
@@ -171,7 +168,7 @@ export function makePoller<T, TAbort = void>({
 
 		state$.set('running');
 		(async () => {
-			while (state$.value === 'running') {
+			while (state$.content() === 'running') {
 				try {
 					const startedAt = overriddenUseDynamicInterval ? overriddenMonotonicTimeProvider() : 0;
 
@@ -179,7 +176,7 @@ export function makePoller<T, TAbort = void>({
 					const produced = await overriddenDataProvider(onAbort$);
 					onData$.emit(produced);
 
-					if (state$.value === 'running') {
+					if (state$.content() === 'running') {
 						const now = overriddenUseDynamicInterval ? overriddenMonotonicTimeProvider() : 0;
 						const passedTime = overriddenUseDynamicInterval ? now - startedAt : 0;
 						skipSleep$ = makeSignal<void>();
@@ -195,7 +192,7 @@ export function makePoller<T, TAbort = void>({
 						.catch((handlerError) => {
 							console.error('poller error handler threw an error', handlerError);
 						});
-					if (state$.value === 'running') {
+					if (state$.content() === 'running') {
 						skipSleep$ = makeSignal<void>();
 						await sleep(overriddenRetryInterval ?? overriddenInterval, {hurry$: skipSleep$});
 					}
@@ -208,11 +205,13 @@ export function makePoller<T, TAbort = void>({
 	}
 
 	async function stop(reasonWrapper?: {reason: TAbort}) {
-		if (state$.value === 'initial' || state$.value === 'stopped') {
+		const currentState = state$.content();
+
+		if (currentState === 'initial' || currentState === 'stopped') {
 			return;
 		}
 
-		if (state$.value === 'stopping') {
+		if (currentState === 'stopping') {
 			if (reasonWrapper) {
 				onAbort$?.emit(reasonWrapper.reason);
 				// remove the signal so that there is no risk of sending it multiple times
@@ -221,7 +220,7 @@ export function makePoller<T, TAbort = void>({
 			return stoppingPromise;
 		}
 
-		if (state$.value === 'running') {
+		if (currentState === 'running') {
 			stoppingPromise = new Promise((res) => {
 				stoppingResolve = res;
 			});
@@ -238,9 +237,6 @@ export function makePoller<T, TAbort = void>({
 
 	return {
 		state$,
-		get state() {
-			return state$.value;
-		},
 		onData$,
 		start,
 		stop,

@@ -66,7 +66,6 @@ at fixed intervals.
 | :------ | :------ | :------ |
 | `onData$` | `ReadonlySignal`<`T`\> | A signal that will emit every time the dateProvider returns (or resolves with) a value. |
 | `state$` | `ReadonlyStore`<[`PollerState`](README.md#pollerstate)\> | A store containing the current state of the poller. See [PollerState](README.md#pollerstate). |
-| ``get` **state**(): [`PollerState`](README.md#pollerstate)` | {} | - |
 | `abort` | (`reason`: `TAbort`) => `Promise`<`void`\> | Stop the poller and emit the onAbort$ signal.  If called multiple times while waiting for a pending dataProvider, only the first call will emit the onAbort$ signal, while all subsequent calls will behave like the stop method, resolving only when the dataProvider completes.  The returned promise will resolve when the poller state becomes 'stopped'. |
 | `restart` | (`overrides?`: `Partial`<[`MakePollerParams`](README.md#makepollerparams)<`T`, `TAbort`\>\>) => `Promise`<`void`\> | Restart the polling loop by calling stop and start. An optional parameter can be passed to override the default configuration. Note that this override is temporary, once the poller is restarted the default configuration will be restored.  If the poller is already in a 'stopped' state, this method behaves like `start`.  The returned promise will resolve when the poller state becomes 'running'. |
 | `start` | () => `Promise`<`void`\> | Start the polling loop.  The returned promise will resolve when the poller state becomes 'running'. |
@@ -127,4 +126,4 @@ a poller.
 
 #### Defined in
 
-[index.ts:139](https://github.com/cdellacqua/poller.js/blob/main/src/lib/index.ts#L139)
+[index.ts:135](https://github.com/cdellacqua/poller.js/blob/main/src/lib/index.ts#L135)

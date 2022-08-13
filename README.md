@@ -20,11 +20,8 @@ A `Poller<T>` is an object that provides the following methods:
 - `abort()`, to stop, signaling a force stop to the pending request;
 - `restart()` (or `restart({...})` to override some settings), to restart the poller, possibly changing its configuration.
 
-Other than those methods there is also a property called `state`
+Other than those methods there is also a property called `state$` [store](https://www.npmjs.com/package/universal-stores)
 which contains one of the following values: 'initial', 'running', 'stopping' or 'stopped'.
-
-The `state` property mirrors the value of a `state$` [store](https://www.npmjs.com/package/universal-stores), which also contains one of the above
-values and lets you subscribe to listen for changes.
 
 A poller has also a public [signal](https://www.npmjs.com/package/@cdellacqua/signals) called `onData$`
 to which you can attach subscribers. Those will be notified at every polling cycle

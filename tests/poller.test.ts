@@ -300,9 +300,9 @@ describe('poller', () => {
 	});
 	it('stops sending the abort signal', (done) => {
 		const poller = makePoller({
-			dataProvider: (onAbort$) => {
+			dataProvider: (signal) => {
 				return new Promise<void>((_, rej) => {
-					onAbort$.subscribeOnce(() => {
+					signal.addEventListener('abort', () => {
 						rej();
 					});
 				});
@@ -320,12 +320,12 @@ describe('poller', () => {
 		})().catch(done);
 	});
 	it('stops sending the abort signal with a payload', (done) => {
-		const poller = makePoller<number, 'bye!'>({
-			dataProvider: (onAbort$) => {
+		const poller = makePoller<number>({
+			dataProvider: (signal) => {
 				return new Promise<number>((_, rej) => {
-					onAbort$.subscribeOnce((payload) => {
-						expect(payload).to.eq('bye!');
-						rej(payload);
+					signal.addEventListener('abort', () => {
+						expect(signal.reason).to.eq('bye!');
+						rej(signal.reason);
 					});
 				});
 			},
@@ -340,12 +340,12 @@ describe('poller', () => {
 		})().catch(done);
 	});
 	it('stops sending the abort signal with a payload after normal stop', (done) => {
-		const poller = makePoller<number, 'bye!'>({
-			dataProvider: (onAbort$) => {
+		const poller = makePoller<number>({
+			dataProvider: (signal) => {
 				return new Promise<number>((_, rej) => {
-					onAbort$.subscribeOnce((payload) => {
-						expect(payload).to.eq('bye!');
-						rej(payload);
+					signal.addEventListener('abort', () => {
+						expect(signal.reason).to.eq('bye!');
+						rej(signal.reason);
 					});
 				});
 			},
@@ -364,9 +364,9 @@ describe('poller', () => {
 	it('stops sending the abort signal multiple times', (done) => {
 		let receivedAbortEvents = 0;
 		const poller = makePoller({
-			dataProvider: (onAbort$) => {
+			dataProvider: (signal) => {
 				return new Promise<number>(() => {
-					onAbort$.subscribeOnce(() => {
+					signal.addEventListener('abort', () => {
 						receivedAbortEvents++;
 						expect(receivedAbortEvents).to.eq(1);
 					});

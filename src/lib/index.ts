@@ -1,25 +1,28 @@
 import {makeStore, ReadonlyStore} from 'universal-stores';
 import {sleep} from '@cdellacqua/sleep';
-import {makeSignal, ReadonlySignal, Signal} from '@cdellacqua/signals';
+import {makeSignal, ReadonlySignal} from '@cdellacqua/signals';
+
+const noop = () => undefined as void;
 
 /**
  * Configuration parameters for making a Poller.
  */
-export type MakePollerParams<T, TAbort> = {
+export type MakePollerParams<T> = {
 	/**
 	 * A function that provides data, synchronously or asynchronously.
 	 *
-	 * If the task performed by this function can be stopped without necessarily
-	 * waiting for it to resolve (e.g. a fetch supporting AbortController/AbortSignal),
-	 * you can attach a subscriber to the passed onAbort$ argument and handle
-	 * that logic.
+	 * You can use the provided AbortSignal argument to stop the task
+	 * performed by the dataProvider when a user calls methods such as `.stop()`
+	 * or `.restart()` on the poller.
+	 * For example, if the dataProvider is implemented as a `fetch(...)` call,
+	 * you can simply propagate the AbortSignal to fetch and let it handle it.
 	 *
-	 * @param onAbort$ a signal that will emit at most once.
+	 * @param signal an AbortSignal.
 	 * Note that this signal is not recycled during subsequent polling cycles,
 	 * in other words the dataProvider gets a new signal object at each cycle (and
 	 * the previous one with its subscriber(s) gets garbage collected).
 	 */
-	dataProvider(onAbort$: ReadonlySignal<TAbort>): Promise<T> | T;
+	dataProvider(signal: AbortSignal): Promise<T> | T;
 	/**
 	 * (optional) An error handler that will receive the errors that can
 	 * occur in the dataProvider.
@@ -65,7 +68,7 @@ export type PollerState = 'initial' | 'running' | 'stopping' | 'stopped';
  * A Poller is an helper object that enables querying a resource or performing a task
  * at fixed intervals.
  */
-export type Poller<T, TAbort> = {
+export type Poller<T> = {
 	/**
 	 * A store containing the current state of the poller. See {@link PollerState}.
 	 */
@@ -82,25 +85,24 @@ export type Poller<T, TAbort> = {
 	start(): Promise<void>;
 	/**
 	 * Stop the poller, but wait for the dataProvider to complete
-	 * if it's already in a pending state (i.e. without emitting the onAbort$ signal).
+	 * if it's already in a pending state (i.e. without triggering the abort signal).
 	 *
 	 * The returned promise will resolve when the poller state becomes 'stopped'.
 	 */
 	stop(): Promise<void>;
 	/**
-	 * Stop the poller and emit the onAbort$ signal.
+	 * Stop the poller and trigger the abort signal.
 	 *
 	 * If called multiple times while waiting for a pending dataProvider,
-	 * only the first call will emit the onAbort$ signal, while
+	 * only the first call will trigger the abort event, while
 	 * all subsequent calls will behave like the stop method,
 	 * resolving only when the dataProvider completes.
 	 *
 	 * The returned promise will resolve when the poller state becomes 'stopped'.
 	 *
-	 * @param reason a reason that will be emitted by the onAbort$ signal
-	 * and propagated to the dataProvider if the latter subscribed to it.
+	 * @param reason a reason that will be emitted by the abort signal.
 	 */
-	abort(reason: TAbort): Promise<void>;
+	abort(reason?: unknown): Promise<void>;
 	/**
 	 * Restart the polling loop by calling stop and start.
 	 * An optional parameter can be passed
@@ -113,7 +115,7 @@ export type Poller<T, TAbort> = {
 	 *
 	 * The returned promise will resolve when the poller state becomes 'running'.
 	 */
-	restart(overrides?: Partial<MakePollerParams<T, TAbort>>): Promise<void>;
+	restart(overrides?: Partial<MakePollerParams<T>>): Promise<void>;
 };
 
 /**
@@ -132,25 +134,25 @@ export type Poller<T, TAbort> = {
  * @param config a object containing the desired configuration of the poller. See {@link MakePollerParams}
  * @returns a poller.
  */
-export function makePoller<T, TAbort = void>({
+export function makePoller<T>({
 	dataProvider,
 	errorHandler,
 	interval,
 	retryInterval,
 	monotonicTimeProvider,
 	useDynamicInterval = true,
-}: MakePollerParams<T, TAbort>): Poller<T, TAbort> {
+}: MakePollerParams<T>): Poller<T> {
 	const state$ = makeStore<PollerState>('initial');
 	const onData$ = makeSignal<T>();
-	let onAbort$: Signal<TAbort> | undefined;
+	let abortController: AbortController | undefined;
+	let abortSleepController: AbortController | undefined;
 	let stoppingPromise: Promise<void> = Promise.resolve();
 	let stoppingResolve: (() => void) | undefined;
-	let skipSleep$: Signal<void> | undefined;
 
-	const defaultErrorHandler = errorHandler ?? ((err) => console.error('an error occurred while polling', err));
+	const defaultErrorHandler = errorHandler ?? ((err) => console.error('an error occurred while polling:', err));
 	const defaultMonotonicTimeProvider = monotonicTimeProvider ?? (() => performance.now());
 
-	async function start(overrides?: Partial<MakePollerParams<T, TAbort>>) {
+	async function start(overrides?: Partial<MakePollerParams<T>>) {
 		const currentState = state$.content();
 		if (currentState === 'running') {
 			return;
@@ -169,32 +171,35 @@ export function makePoller<T, TAbort = void>({
 		state$.set('running');
 		(async () => {
 			while (state$.content() === 'running') {
+				abortController = new AbortController();
+				abortSleepController = new AbortController();
 				try {
 					const startedAt = overriddenUseDynamicInterval ? overriddenMonotonicTimeProvider() : 0;
 
-					onAbort$ = makeSignal<TAbort>();
-					const produced = await overriddenDataProvider(onAbort$);
+					const produced = await overriddenDataProvider(abortController.signal);
 					onData$.emit(produced);
 
 					if (state$.content() === 'running') {
 						const now = overriddenUseDynamicInterval ? overriddenMonotonicTimeProvider() : 0;
 						const passedTime = overriddenUseDynamicInterval ? now - startedAt : 0;
-						skipSleep$ = makeSignal<void>();
 						if (overriddenUseDynamicInterval) {
-							await sleep(Math.max(0, overriddenInterval - passedTime), {hurry$: skipSleep$});
+							await sleep(Math.max(0, overriddenInterval - passedTime), {signal: abortSleepController.signal}).catch(
+								noop,
+							);
 						} else {
-							await sleep(overriddenInterval, {hurry$: skipSleep$});
+							await sleep(overriddenInterval, {signal: abortSleepController.signal}).catch(noop);
 						}
 					}
 				} catch (err) {
 					await Promise.resolve()
 						.then(() => overriddenErrorHandler(err))
 						.catch((handlerError) => {
-							console.error('poller error handler threw an error', handlerError);
+							console.error('poller error handler threw an error:', handlerError);
 						});
 					if (state$.content() === 'running') {
-						skipSleep$ = makeSignal<void>();
-						await sleep(overriddenRetryInterval ?? overriddenInterval, {hurry$: skipSleep$});
+						await sleep(overriddenRetryInterval ?? overriddenInterval, {signal: abortSleepController.signal}).catch(
+							noop,
+						);
 					}
 				}
 			}
@@ -204,7 +209,7 @@ export function makePoller<T, TAbort = void>({
 		});
 	}
 
-	async function stop(reasonWrapper?: {reason: TAbort}) {
+	async function stop(reasonWrapper?: {reason: unknown}) {
 		const currentState = state$.content();
 
 		if (currentState === 'initial' || currentState === 'stopped') {
@@ -213,9 +218,8 @@ export function makePoller<T, TAbort = void>({
 
 		if (currentState === 'stopping') {
 			if (reasonWrapper) {
-				onAbort$?.emit(reasonWrapper.reason);
-				// remove the signal so that there is no risk of sending it multiple times
-				onAbort$ = undefined;
+				abortController?.abort(reasonWrapper.reason);
+				abortController = undefined;
 			}
 			return stoppingPromise;
 		}
@@ -225,11 +229,10 @@ export function makePoller<T, TAbort = void>({
 				stoppingResolve = res;
 			});
 			state$.set('stopping');
-			skipSleep$?.emit();
+			abortSleepController?.abort();
 			if (reasonWrapper) {
-				onAbort$?.emit(reasonWrapper.reason);
-				// remove the signal so that there is no risk of sending it multiple times
-				onAbort$ = undefined;
+				abortController?.abort(reasonWrapper.reason);
+				abortController = undefined;
 			}
 			await stoppingPromise;
 		}

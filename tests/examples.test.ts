@@ -142,10 +142,8 @@ describe('examples', () => {
 		};
 		const poller = makePoller({
 			interval: 5000,
-			dataProvider: (onAbort$) => {
-				const abortController = new AbortController();
-				onAbort$.subscribeOnce(() => abortController.abort());
-				return fakeFetch('http://www.example.com/', {signal: abortController.signal});
+			dataProvider: (signal) => {
+				return fakeFetch('http://www.example.com/', {signal});
 			},
 			errorHandler: (err) => {
 				error = err;

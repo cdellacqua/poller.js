@@ -123,15 +123,15 @@ In the first scenario, calling `stop` will resolve almost immediately, cancellin
 the delay, while in the second scenario it's necessary to wait for
 the `dataProvider` to complete (or throw an error).
 
-### (Advance) Aborting a dataProvider task
+### (Advanced) Aborting a dataProvider task
 
-An `onAbort$` signal (that can emit at most once) is passed to the
+An AbortSignal (that can trigger at most once) is passed to the
 `dataProvider` at every polling cycle.
-This signal emits when the `abort()` method is called.
+This signal is triggered when the `abort()` method is called.
 Note that calling `abort()` multiple times won't emit the signal again if the currently
 pending `dataProvider` already received it.
 
-By registering to the `onAbort$` signal, a `dataProvider` can
+By attaching an handler to the AbortSignal 'abort' event, a `dataProvider` can
 try to interrupt its task (e.g. an XHR request), therefore
 letting the poller stop more rapidly.
 
@@ -142,10 +142,8 @@ import {makePoller} from 'reactive-poller';
 
 const examplePoller = makePoller({
 	interval: 5000,
-	dataProvider: (onAbort$) => {
-		const abortController = new AbortController();
-		onAbort$.subscribeOnce(() => abortController.abort());
-		return fetch('http://www.example.com/', {signal: abortController.signal});
+	dataProvider: (signal) => {
+		return fetch('http://www.example.com/', {signal});
 	},
 	errorHandler: (err) => {
 		if (err instanceof DOMException && err.name === 'AbortError') {

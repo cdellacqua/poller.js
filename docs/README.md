@@ -12,8 +12,10 @@ reactive-poller
 - [MakePollerParams](README.md#makepollerparams)
 - [Poller](README.md#poller)
 - [PollerState](README.md#pollerstate)
+- [ReadonlySignal](README.md#readonlysignal)
 - [ReadonlyStore](README.md#readonlystore)
 - [Setter](README.md#setter)
+- [Signal](README.md#signal)
 - [StartHandler](README.md#starthandler)
 - [StopHandler](README.md#stophandler)
 - [Store](README.md#store)
@@ -25,9 +27,12 @@ reactive-poller
 
 ### Functions
 
+- [coalesceSignals](README.md#coalescesignals)
+- [deriveSignal](README.md#derivesignal)
 - [makeDerivedStore](README.md#makederivedstore)
 - [makePoller](README.md#makepoller)
 - [makeReadonlyStore](README.md#makereadonlystore)
+- [makeSignal](README.md#makesignal)
 - [makeStore](README.md#makestore)
 
 ## Type Aliases
@@ -85,7 +90,7 @@ A comparison function used to optimize subscribers notifications. Used in [Store
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:24
+node_modules/universal-stores/dist/index.d.ts:22
 
 ___
 
@@ -111,7 +116,7 @@ A generic getter function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:18
+node_modules/universal-stores/dist/index.d.ts:16
 
 ___
 
@@ -161,7 +166,7 @@ at fixed intervals.
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
-| `onData$` | `ReadonlySignal`<`T`\> | A signal that will emit every time the dateProvider returns (or resolves with) a value. |
+| `onData$` | [`ReadonlySignal`](README.md#readonlysignal)<`T`\> | A signal that will emit every time the dateProvider returns (or resolves with) a value. |
 | `state$` | [`ReadonlyStore`](README.md#readonlystore)<[`PollerState`](README.md#pollerstate)\> | A store containing the current state of the poller. See [PollerState](README.md#pollerstate). |
 | `abort` | (`reason?`: `unknown`) => `Promise`<`void`\> | Stop the poller and trigger the abort signal. If called multiple times while waiting for a pending dataProvider, only the first call will trigger the abort event, while all subsequent calls will behave like the stop method, resolving only when the dataProvider completes. The returned promise will resolve when the poller state becomes 'stopped'. |
 | `restart` | (`overrides?`: `Partial`<[`MakePollerParams`](README.md#makepollerparams)<`T`\>\>) => `Promise`<`void`\> | Restart the polling loop by calling stop and start. An optional parameter can be passed to override the default configuration. Note that this override is temporary, once the poller is restarted the default configuration will be restored. If the poller is already in a 'stopped' state, this method behaves like `start`. The returned promise will resolve when the poller state becomes 'running'. |
@@ -183,6 +188,32 @@ All the possible states in which a poller can be.
 #### Defined in
 
 [src/lib/index.ts:67](https://github.com/cdellacqua/poller.js/blob/main/src/lib/index.ts#L67)
+
+___
+
+### ReadonlySignal
+
+Ƭ **ReadonlySignal**<`T`\>: `Object`
+
+A signal that can have subscribers and emit values to them.
+
+#### Type parameters
+
+| Name |
+| :------ |
+| `T` |
+
+#### Type declaration
+
+| Name | Type |
+| :------ | :------ |
+| `nOfSubscriptions` | () => `number` |
+| `subscribe` | (`subscriber`: [`Subscriber`](README.md#subscriber)<`T`\>) => [`Unsubscribe`](README.md#unsubscribe) |
+| `subscribeOnce` | (`subscriber`: [`Subscriber`](README.md#subscriber)<`T`\>) => [`Unsubscribe`](README.md#unsubscribe) |
+
+#### Defined in
+
+node_modules/@cdellacqua/signals/dist/index.d.ts:6
 
 ___
 
@@ -211,7 +242,7 @@ therefore its value can only be changed by a [StartHandler](README.md#starthandl
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:35
+node_modules/universal-stores/dist/index.d.ts:33
 
 ___
 
@@ -243,7 +274,25 @@ A generic setter function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:16
+node_modules/universal-stores/dist/index.d.ts:14
+
+___
+
+### Signal
+
+Ƭ **Signal**<`T`\>: [`ReadonlySignal`](README.md#readonlysignal)<`T`\> & { `emit`: (`v`: `T`) => `void`  }
+
+A signal that can have subscribers and emit values to them.
+
+#### Type parameters
+
+| Name |
+| :------ |
+| `T` |
+
+#### Defined in
+
+node_modules/@cdellacqua/signals/dist/index.d.ts:28
 
 ___
 
@@ -275,7 +324,7 @@ A function that gets called once a store gets at least one subscriber. Used in [
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:28
+node_modules/universal-stores/dist/index.d.ts:26
 
 ___
 
@@ -295,7 +344,7 @@ A function that gets called once a store reaches 0 subscribers. Used in [Store](
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:26
+node_modules/universal-stores/dist/index.d.ts:24
 
 ___
 
@@ -314,7 +363,7 @@ provides the current value upon subscription.
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:58
+node_modules/universal-stores/dist/index.d.ts:56
 
 ___
 
@@ -339,7 +388,7 @@ Configurations for Store<T> and ReadonlyStore<T>.
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:74
+node_modules/universal-stores/dist/index.d.ts:72
 
 ___
 
@@ -357,7 +406,7 @@ ___
 
 ▸ (`current`): `void`
 
-A generic subscriber. Used in [Store](README.md#store)
+A generic subscriber that takes a value emitted by a signal as its only parameter.
 
 ##### Parameters
 
@@ -371,7 +420,7 @@ A generic subscriber. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:12
+node_modules/@cdellacqua/signals/dist/index.d.ts:2
 
 ___
 
@@ -383,7 +432,7 @@ ___
 
 ▸ (): `void`
 
-A function that's used to unsubscribe a subscriber from a store. Used in [Store](README.md#store)
+A function that's used to unsubscribe a subscriber from a signal.
 
 ##### Returns
 
@@ -391,7 +440,7 @@ A function that's used to unsubscribe a subscriber from a store. Used in [Store]
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:14
+node_modules/@cdellacqua/signals/dist/index.d.ts:4
 
 ___
 
@@ -423,7 +472,7 @@ A generic update function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:22
+node_modules/universal-stores/dist/index.d.ts:20
 
 ___
 
@@ -455,9 +504,92 @@ A generic updater function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:20
+node_modules/universal-stores/dist/index.d.ts:18
 
 ## Functions
+
+### coalesceSignals
+
+▸ **coalesceSignals**<`T`\>(`signals$`): [`ReadonlySignal`](README.md#readonlysignal)<`T`[`number`]\>
+
+Coalesce multiple signals into one that will emit the latest value emitted
+by any of the source signals.
+
+Example:
+```ts
+const lastUpdate1$ = makeSignal<number>();
+const lastUpdate2$ = makeSignal<number>();
+const latestUpdate$ = coalesceSignals([lastUpdate1$, lastUpdate2$]);
+latestUpdate$.subscribe((v) => console.log(v));
+lastUpdate1$.emit(1577923200000); // will log 1577923200000
+lastUpdate2$.emit(1653230659450); // will log 1653230659450
+```
+
+#### Type parameters
+
+| Name | Type |
+| :------ | :------ |
+| `T` | extends `unknown`[] |
+
+#### Parameters
+
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `signals$` | { [P in string \| number \| symbol]: ReadonlySignal<T[P]\> } | an array of signals to observe. |
+
+#### Returns
+
+[`ReadonlySignal`](README.md#readonlysignal)<`T`[`number`]\>
+
+a new signal that emits whenever one of the source signals emits.
+
+#### Defined in
+
+node_modules/@cdellacqua/signals/dist/composition.d.ts:35
+
+___
+
+### deriveSignal
+
+▸ **deriveSignal**<`T`, `U`\>(`signal$`, `transform`): [`ReadonlySignal`](README.md#readonlysignal)<`U`\>
+
+Create a signal that emits whenever the passed signal emits. The original
+emitted value gets transformed by the passed function and the result gets
+emitted.
+
+Example:
+```ts
+const signal$ = makeSignal<number>();
+const derived$ = deriveSignal(signal$, (n) => n + 100);
+derived$.subscribe((v) => console.log(v));
+signal$.emit(3); // will trigger console.log, echoing 103
+```
+
+#### Type parameters
+
+| Name |
+| :------ |
+| `T` |
+| `U` |
+
+#### Parameters
+
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `signal$` | [`ReadonlySignal`](README.md#readonlysignal)<`T`\> | a signal. |
+| `transform` | (`data`: `T`) => `U` | a transformation function. |
+
+#### Returns
+
+[`ReadonlySignal`](README.md#readonlysignal)<`U`\>
+
+a new signal that will emit the transformed data.
+
+#### Defined in
+
+node_modules/@cdellacqua/signals/dist/composition.d.ts:18
+
+___
 
 ### makeDerivedStore
 
@@ -487,7 +619,7 @@ source$.set(16); // triggers both console.logs, printing 16 and 32
 | :------ | :------ | :------ |
 | `readonlyStore` | [`ReadonlyStore`](README.md#readonlystore)<`TIn`\> | a store or readonly store. |
 | `map` | (`value`: `TIn`) => `TOut` | a function that takes the current value of the source store and maps it to another value. |
-| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | - |
+| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | a [DerivedStoreConfig](README.md#derivedstoreconfig) which contains configuration information such as a value comparator to avoid needless notifications to subscribers. |
 
 #### Returns
 
@@ -495,9 +627,9 @@ source$.set(16); // triggers both console.logs, printing 16 and 32
 
 #### Defined in
 
-node_modules/universal-stores/dist/composition.d.ts:36
+node_modules/universal-stores/dist/composition.d.ts:37
 
-▸ **makeDerivedStore**<`TIn`, `TOut`\>(`readonlyStores2`, `map`, `config?`): [`ReadonlyStore`](README.md#readonlystore)<`TOut`\>
+▸ **makeDerivedStore**<`TIn`, `TOut`\>(`readonlyStores`, `map`, `config?`): [`ReadonlyStore`](README.md#readonlystore)<`TOut`\>
 
 Create a derived store from multiple sources.
 
@@ -517,16 +649,16 @@ source2$.set(9); // prints 9 (second console.log) and 20 (third console.log)
 
 | Name | Type |
 | :------ | :------ |
-| `TIn` | extends [] \| [`unknown`, ...unknown[]] |
+| `TIn` | extends `unknown`[] \| [`unknown`, ...unknown[]] |
 | `TOut` | `TOut` |
 
 #### Parameters
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
-| `readonlyStores2` | { [K in string \| number \| symbol]: ReadonlyStore<TIn[K]\> } | - |
-| `map` | (`value`: { [K in string \| number \| symbol]: TIn[K] } & `unknown`[]) => `TOut` | a function that takes the current value of all the source stores and maps it to another value. |
-| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | - |
+| `readonlyStores` | { [K in string \| number \| symbol]: ReadonlyStore<TIn[K]\> } | an array of stores or readonly stores. |
+| `map` | (`value`: { [K in string \| number \| symbol]: TIn[K] }) => `TOut` | a function that takes the current value of all the source stores and maps it to another value. |
+| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | a [DerivedStoreConfig](README.md#derivedstoreconfig) which contains configuration information such as a value comparator to avoid needless notifications to subscribers. |
 
 #### Returns
 
@@ -534,7 +666,7 @@ source2$.set(9); // prints 9 (second console.log) and 20 (third console.log)
 
 #### Defined in
 
-node_modules/universal-stores/dist/composition.d.ts:54
+node_modules/universal-stores/dist/composition.d.ts:56
 
 ▸ **makeDerivedStore**<`TIn`, `TOut`\>(`readonlyStores`, `map`, `config?`): [`ReadonlyStore`](README.md#readonlystore)<`TOut`\>
 
@@ -565,7 +697,7 @@ source2$.set(9); // prints 9 (second console.log) and 20 (third console.log)
 | :------ | :------ | :------ |
 | `readonlyStores` | { [K in string \| number \| symbol]: ReadonlyStore<TIn[K]\> } | an array of stores or readonly stores. |
 | `map` | (`value`: { [K in string \| number \| symbol]: TIn[K] }) => `TOut` | a function that takes the current value of all the source stores and maps it to another value. |
-| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | - |
+| `config?` | [`DerivedStoreConfig`](README.md#derivedstoreconfig)<`TOut`\> | a [DerivedStoreConfig](README.md#derivedstoreconfig) which contains configuration information such as a value comparator to avoid needless notifications to subscribers. |
 
 #### Returns
 
@@ -573,7 +705,7 @@ source2$.set(9); // prints 9 (second console.log) and 20 (third console.log)
 
 #### Defined in
 
-node_modules/universal-stores/dist/composition.d.ts:76
+node_modules/universal-stores/dist/composition.d.ts:79
 
 ___
 
@@ -656,7 +788,7 @@ a ReadonlyStore
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:146
+node_modules/universal-stores/dist/index.d.ts:144
 
 ▸ **makeReadonlyStore**<`T`\>(`initialValue`, `config?`): [`ReadonlyStore`](README.md#readonlystore)<`T`\>
 
@@ -693,7 +825,7 @@ a ReadonlyStore
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:163
+node_modules/universal-stores/dist/index.d.ts:161
 
 ▸ **makeReadonlyStore**<`T`\>(`initialValue`, `startOrConfig?`): [`ReadonlyStore`](README.md#readonlystore)<`T`\>
 
@@ -732,7 +864,42 @@ a ReadonlyStore
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:182
+node_modules/universal-stores/dist/index.d.ts:180
+
+___
+
+### makeSignal
+
+▸ **makeSignal**<`T`\>(): [`Signal`](README.md#signal)<`T`\>
+
+Make a signal of type T.
+
+Example usage:
+```ts
+const signal$ = makeSignal<number>();
+signal$.emit(10);
+```
+Example usage with no data:
+```ts
+const signal$ = makeSignal<void>();
+signal$.emit();
+```
+
+#### Type parameters
+
+| Name |
+| :------ |
+| `T` |
+
+#### Returns
+
+[`Signal`](README.md#signal)<`T`\>
+
+a signal.
+
+#### Defined in
+
+node_modules/@cdellacqua/signals/dist/index.d.ts:50
 
 ___
 
@@ -771,7 +938,7 @@ a Store
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:97
+node_modules/universal-stores/dist/index.d.ts:95
 
 ▸ **makeStore**<`T`\>(`initialValue`, `config?`): [`Store`](README.md#store)<`T`\>
 
@@ -806,7 +973,7 @@ a Store
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:112
+node_modules/universal-stores/dist/index.d.ts:110
 
 ▸ **makeStore**<`T`\>(`initialValue`, `startOrConfig?`): [`Store`](README.md#store)<`T`\>
 
@@ -841,4 +1008,4 @@ a Store
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:127
+node_modules/universal-stores/dist/index.d.ts:125

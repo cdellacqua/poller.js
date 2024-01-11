@@ -72,6 +72,6 @@
 	"dependencies": {
 		"@cdellacqua/signals": "^5.0.4",
 		"@cdellacqua/sleep": "^6.0.1",
-		"universal-stores": "^2.3.0"
+		"universal-stores": "^2.3.1"
 	}
 }

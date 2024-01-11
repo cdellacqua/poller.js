@@ -70,8 +70,8 @@
 		"vite": "^2.6.4"
 	},
 	"dependencies": {
-		"@cdellacqua/signals": "^5.0.2",
-		"@cdellacqua/sleep": "^6.0.0",
-		"universal-stores": "^2.1.1"
+		"@cdellacqua/signals": "^5.0.4",
+		"@cdellacqua/sleep": "^6.0.1",
+		"universal-stores": "^2.3.0"
 	}
 }

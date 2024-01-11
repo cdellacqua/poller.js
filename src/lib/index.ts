@@ -2,6 +2,8 @@ import {makeStore, ReadonlyStore} from 'universal-stores';
 import {sleep} from '@cdellacqua/sleep';
 import {makeSignal, ReadonlySignal} from '@cdellacqua/signals';
 
+export * from 'universal-stores';
+
 const noop = () => undefined as void;
 
 /**

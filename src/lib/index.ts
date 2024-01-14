@@ -2,7 +2,8 @@ import {makeStore, ReadonlyStore} from 'universal-stores';
 import {sleep} from '@cdellacqua/sleep';
 import {makeSignal, ReadonlySignal} from '@cdellacqua/signals';
 
-export * from 'universal-stores';
+export type {Subscriber, Unsubscribe, ReadonlyStore} from 'universal-stores';
+export type {ReadonlySignal} from '@cdellacqua/signals';
 
 const noop = () => undefined as void;
 

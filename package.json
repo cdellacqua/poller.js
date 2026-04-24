@@ -18,7 +18,8 @@
 		"poller"
 	],
 	"repository": {
-		"url": "git+https://github.com/cdellacqua/poller.js"
+		"type": "git",
+		"url": "git+https://github.com/cdellacqua/poller.js.git"
 	},
 	"bugs": {
 		"url": "https://github.com/cdellacqua/poller.js/issues"

@@ -1,4 +1,4 @@
-import {makePoller} from './lib';
+import {makePoller} from './lib/index.js';
 import {sleep} from '@cdellacqua/sleep';
 
 console.log(`Random number: -`);

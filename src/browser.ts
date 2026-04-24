@@ -1,5 +1,5 @@
 import './style.css';
-import {makePoller} from './lib';
+import {makePoller} from './lib/index.js';
 import {sleep} from '@cdellacqua/sleep';
 
 const appDiv = document.getElementById('app') as HTMLDivElement;

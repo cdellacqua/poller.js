@@ -1,9 +1,6 @@
-import spies from 'chai-spies';
-import chai, {expect} from 'chai';
+import {vi} from 'vitest';
 import {sleep} from '@cdellacqua/sleep';
-import {makePoller} from '../src/lib';
-
-chai.use(spies);
+import {makePoller} from '../src/lib/index.js';
 
 function nextTick() {
 	return Promise.resolve();
@@ -36,19 +33,23 @@ function resolveAllPendingSetTimeout() {
 }
 
 describe('poller', () => {
-	let setTimeoutSandbox: ChaiSpies.Sandbox | undefined;
-	before(() => {
-		setTimeoutSandbox = chai.spy.sandbox();
-		setTimeoutSandbox.on(globalThis, 'setTimeout', (callback, ms, ...params) => {
+	let setTimeoutSpy: ReturnType<typeof vi.spyOn> | undefined;
+	beforeAll(() => {
+		setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback: TimerHandler, ms?: number, ...params: unknown[]) => {
 			pendingSetTimeouts.push({
-				callback: () => callback(...params),
-				ttl: ms,
+				callback: () => {
+					if (typeof callback === 'function') {
+						callback(...params);
+					}
+				},
+				ttl: Number(ms ?? 0),
 			});
-		});
+			return 0 as unknown as ReturnType<typeof setTimeout>;
+		}) as unknown as typeof setTimeout);
 	});
-	after(() => {
-		setTimeoutSandbox?.restore();
-		setTimeoutSandbox = undefined;
+	afterAll(() => {
+		setTimeoutSpy?.mockRestore();
+		setTimeoutSpy = undefined;
 	});
 	it('checks the poller state in different situations', async () => {
 		const poller = makePoller({
@@ -298,7 +299,7 @@ describe('poller', () => {
 		resolveAllPendingSetTimeout();
 		await poller.stop();
 	});
-	it('stops sending the abort signal', (done) => {
+	it('stops sending the abort signal', async () => {
 		const poller = makePoller({
 			dataProvider: (signal) => {
 				return new Promise<void>((_, rej) => {
@@ -309,17 +310,15 @@ describe('poller', () => {
 			},
 			interval: 0,
 		});
-		(async () => {
-			await poller.start();
-			poller.stop().catch(done);
-			await nextMillisecond();
-			expect(poller.state$.content()).to.eq('stopping');
-			await poller.abort();
-			expect(poller.state$.content()).to.eq('stopped');
-			done();
-		})().catch(done);
+		await poller.start();
+		const stopPromise = poller.stop();
+		await nextMillisecond();
+		expect(poller.state$.content()).to.eq('stopping');
+		await poller.abort();
+		await stopPromise;
+		expect(poller.state$.content()).to.eq('stopped');
 	});
-	it('stops sending the abort signal with a payload', (done) => {
+	it('stops sending the abort signal with a payload', async () => {
 		const poller = makePoller<number>({
 			dataProvider: (signal) => {
 				return new Promise<number>((_, rej) => {
@@ -331,15 +330,12 @@ describe('poller', () => {
 			},
 			interval: 0,
 		});
-		(async () => {
-			await poller.start();
-			expect(poller.state$.content()).to.eq('running');
-			await poller.abort('bye!');
-			done();
-			expect(poller.state$.content()).to.eq('stopped');
-		})().catch(done);
+		await poller.start();
+		expect(poller.state$.content()).to.eq('running');
+		await poller.abort('bye!');
+		expect(poller.state$.content()).to.eq('stopped');
 	});
-	it('stops sending the abort signal with a payload after normal stop', (done) => {
+	it('stops sending the abort signal with a payload after normal stop', async () => {
 		const poller = makePoller<number>({
 			dataProvider: (signal) => {
 				return new Promise<number>((_, rej) => {
@@ -352,16 +348,14 @@ describe('poller', () => {
 			interval: 0,
 			monotonicTimeProvider: () => 0,
 		});
-		(async () => {
-			await poller.start();
-			poller.stop().catch(done);
-			expect(poller.state$.content()).to.eq('stopping');
-			await poller.abort('bye!');
-			expect(poller.state$.content()).to.eq('stopped');
-			done();
-		})().catch(done);
+		await poller.start();
+		const stopPromise = poller.stop();
+		expect(poller.state$.content()).to.eq('stopping');
+		await poller.abort('bye!');
+		await stopPromise;
+		expect(poller.state$.content()).to.eq('stopped');
 	});
-	it('stops sending the abort signal multiple times', (done) => {
+	it('stops sending the abort signal multiple times', async () => {
 		let receivedAbortEvents = 0;
 		const poller = makePoller({
 			dataProvider: (signal) => {
@@ -375,14 +369,13 @@ describe('poller', () => {
 			interval: 0,
 			monotonicTimeProvider: () => 0,
 		});
-		(async () => {
-			await poller.start();
-			poller.abort().catch(done);
-			poller.abort().catch(done);
-			poller.abort().catch(done);
-			poller.abort().catch(done);
-			expect(poller.state$.content()).to.eq('stopping');
-			done();
-		})().catch(done);
+		await poller.start();
+		void poller.abort();
+		void poller.abort();
+		void poller.abort();
+		void poller.abort();
+		expect(poller.state$.content()).to.eq('stopping');
+		await nextTick();
+		expect(receivedAbortEvents).to.eq(1);
 	});
 });

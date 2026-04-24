@@ -1,9 +1,6 @@
-import spies from 'chai-spies';
-import chai, {expect} from 'chai';
+import {vi} from 'vitest';
 import {sleep} from '@cdellacqua/sleep';
-import {makePoller} from '../src/lib';
-
-chai.use(spies);
+import {makePoller} from '../src/lib/index.js';
 
 function nextTick() {
 	return Promise.resolve();
@@ -36,19 +33,23 @@ function resolveAllPendingSetTimeout() {
 }
 
 describe('examples', () => {
-	let setTimeoutSandbox: ChaiSpies.Sandbox | undefined;
-	before(() => {
-		setTimeoutSandbox = chai.spy.sandbox();
-		setTimeoutSandbox.on(globalThis, 'setTimeout', (callback, ms, ...params) => {
+	let setTimeoutSpy: ReturnType<typeof vi.spyOn> | undefined;
+	beforeAll(() => {
+		setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback: TimerHandler, ms?: number, ...params: unknown[]) => {
 			pendingSetTimeouts.push({
-				callback: () => callback(...params),
-				ttl: ms,
+				callback: () => {
+					if (typeof callback === 'function') {
+						callback(...params);
+					}
+				},
+				ttl: Number(ms ?? 0),
 			});
-		});
+			return 0 as unknown as ReturnType<typeof setTimeout>;
+		}) as unknown as typeof setTimeout);
 	});
-	after(() => {
-		setTimeoutSandbox?.restore();
-		setTimeoutSandbox = undefined;
+	afterAll(() => {
+		setTimeoutSpy?.mockRestore();
+		setTimeoutSpy = undefined;
 	});
 
 	it('makePoller', () => {

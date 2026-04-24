@@ -172,7 +172,7 @@ export function makePoller<T>({
 		const overriddenUseDynamicInterval = overrides?.useDynamicInterval ?? useDynamicInterval;
 
 		state$.set('running');
-		(async () => {
+		void (async () => {
 			while (state$.content() === 'running') {
 				abortController = new AbortController();
 				abortSleepController = new AbortController();

@@ -80,8 +80,8 @@
 		"vitest": "^4.1.5"
 	},
 	"dependencies": {
-		"@cdellacqua/signals": "^5.0.4",
-		"@cdellacqua/sleep": "^6.0.1",
-		"universal-stores": "^2.4.3"
+		"@cdellacqua/signals": "^6.0.0",
+		"@cdellacqua/sleep": "^7.0.0",
+		"universal-stores": "^3.0.0"
 	}
 }
